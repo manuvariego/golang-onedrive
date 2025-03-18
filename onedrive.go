@@ -43,22 +43,24 @@ func ListFiles(client *http.Client, currentPath string) ([]Item, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		os.Exit(1)
 		return nil, err
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("Error fetching files: %s", body)
+		_, err := io.ReadAll(resp.Body)
+		return nil, err
 	}
 
 	var response struct {
 		Value []Item `json:"value"`
 	}
 
-	json.NewDecoder(resp.Body).Decode(&response)
+	err = json.NewDecoder(resp.Body).Decode(&response)
+	if err != nil {
+		return nil, err
+	}
 
 	return response.Value, nil
 }
