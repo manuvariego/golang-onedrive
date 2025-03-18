@@ -52,7 +52,7 @@ func ListFiles(client *http.Client, folderPath string) ([]DriveItem, error) {
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("error fetching files: %s", body)
+		return nil, fmt.Errorf("Error fetching files: %s", body)
 	}
 
 	var response struct {

@@ -70,7 +70,7 @@ func GetInitialTokens(conf *oauth2.Config) *oauth2.Token {
 
 	var code string
 
-	fmt.Println("Ingrese el codigo: ")
+	fmt.Println("Enterr the code: ")
 	if _, err := fmt.Scan(&code); err != nil {
 		log.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func GetInitialTokens(conf *oauth2.Config) *oauth2.Token {
 	tok, err := conf.Exchange(context.Background(), code, oauth2.VerifierOption(verifier))
 
 	if err != nil {
-		log.Fatalf("Error al generar el token: %v", err)
+		log.Fatalf("Error generating token: %v", err)
 	}
 
 	return tok
@@ -88,7 +88,7 @@ func GetInitialTokens(conf *oauth2.Config) *oauth2.Token {
 func GetValidToken(conf *oauth2.Config) (*oauth2.Token, error) {
 	currentToken, err := LoadToken()
 	if err != nil {
-		log.Fatal("Error al cargar el token del archivo")
+		log.Fatal("Error while loading token")
 		return nil, err
 	}
 
