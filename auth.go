@@ -12,14 +12,17 @@ import (
 )
 
 func NewOauthConfig() *oauth2.Config {
+	authUrl := fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/authorize", os.Getenv("MS_OPENGRAPH_TENANT_ID"))
+	tokenUrl := fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", os.Getenv("MS_OPENGRAPH_TENANT_ID"))
 	return &oauth2.Config{
-		ClientID:     os.Getenv("MS_APP_ID"),
-		ClientSecret: os.Getenv("MS_APP_SECRET"),
-		Scopes:       []string{"User.Read", "Files.Read.All", "offline_access"},
-		RedirectURL:  "http://localhost/auth",
+		ClientID:     os.Getenv("MS_OPENGRAPH_APP_ID"),
+		ClientSecret: os.Getenv("MS_OPENGRAPH_CLIENT_SECRET"),
+		Scopes:       []string{"User.Read", "offline_access", "Sites.Read.All", "Files.ReadWrite.All"},
+		//Temp for development
+		RedirectURL: "https://localhost:3000",
 		Endpoint: oauth2.Endpoint{
-			AuthURL:  "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
-			TokenURL: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+			AuthURL:  authUrl,
+			TokenURL: tokenUrl,
 		},
 	}
 }
