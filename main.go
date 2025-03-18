@@ -20,6 +20,7 @@ func main() {
 
 	conf := NewOauthConfig()
 	fmt.Println(conf)
+
 	//Checks if token.json exists, if it doesn't it is created with new tokens from user
 	if !CheckTokenFile() {
 		fmt.Println("here")
@@ -30,9 +31,8 @@ func main() {
 		}
 	}
 
+	//Client used to make reqs to Onedrive API (or sharepoint) depends.. 8D (es una carita)
 	client, err := GetClient(conf)
-
-	// endpoint
 
 	x, y := ListFiles(client, "x")
 	fmt.Println("Back in main")
