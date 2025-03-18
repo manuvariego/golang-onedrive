@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 var BaseURL = "https://graph.microsoft.com/v1.0/"
@@ -12,35 +13,33 @@ var rootFolder = "/me/drive/root"
 
 // var folderPath = rootFolder
 
-type DriveItem struct {
-	Name     string `json:"name"`
-	IsFolder bool   `json:"folder,omitempty"`
-	ID       string `json:"id"`
-}
-
 // func ChangeDirectory(folderPath string) {
 //
 // }
 
-func menu() {
-	var op string
-	_, err := fmt.Scanln(&op)
+func Menu() {
+	var cmd string
+	_, err := fmt.Scanln(&cmd)
 	if err != nil {
 		fmt.Println("Error reading input", err)
 		return
 	}
-	switch op {
+	cmd = strings.TrimSpace(cmd)
 
-	case "ls":
+	if cmd == "ls" {
+		fmt.Println("temp")
+	}
 
-	case "cd":
+	if strings.HasPrefix(cmd, "cd") {
+		cmd = strings.TrimPrefix(cmd, "cd")
+		fmt.Println(cmd)
 	}
 
 }
 
 func ListFiles(client *http.Client, folderPath string) ([]DriveItem, error) {
 
-	url := BaseURL + rootFolder + "/children"
+	url := BaseURL + rootFolder + ":/children"
 	req, _ := http.NewRequest("GET", url, nil)
 	fmt.Println(url)
 
