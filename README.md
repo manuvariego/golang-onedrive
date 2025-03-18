@@ -1,6 +1,8 @@
 # Golang onedrive navigator
 This is onedrive folder/files navigator used with 'cd' to change directory and 'ls' to list current directory information. `cd <directory>` will move you to that directory and so forth.
 
+## Shown file/folder information
+Currently the idea is that each `Driveitem`, shows its `name` ,`path` ,`downloadUrl` and `id` for the time being.
 
 ## Environment variables
 
