@@ -11,8 +11,8 @@ import (
 )
 
 func returnStaticPaths() (string, string) {
-	baseUrl := fmt.Sprintf("https://graph.microsoft.com/v1.0/")
-	rootUrl := fmt.Sprintf("me/drives/%s", os.Getenv("SHAREPOINT_PATH"))
+	baseUrl := fmt.Sprintf("https://graph.microsoft.com/v1.0/me")
+	rootUrl := fmt.Sprintf("/drives/%s", os.Getenv("SHAREPOINT_PATH"))
 	return baseUrl, rootUrl
 }
 
@@ -20,25 +20,53 @@ func directoryExists(items []Item, cmd string) (Item, bool) {
 	for _, item := range items {
 		if item.Name == cmd && item.IsFolder != nil {
 			return item, true
+		} else if cmd == ".." {
+			return item, false
 		}
 	}
 	return Item{}, false
 }
 
-func ChangeDirectory(item Item, currentPath *string) {
+// func getDirectoryPathByItem(item Item) string {
+// 	baseUrl, _ := returnStaticPaths()
+//
+// 	return baseUrl + item.ParentData.Path
+// }
 
-	newPath := *currentPath + "/" + item.Name
+func ChangeDirectory(cmd string, item Item, currentPath *string) {
+	if cmd == ".." {
+		newPath := item.ParentData.Path
+		fmt.Println(newPath)
+		*currentPath = newPath
+		fmt.Println("Current Path has been updated1:", *currentPath)
+	} else {
 
-	*currentPath = newPath
+		newPath := *currentPath + "/" + item.Name
+		fmt.Println("-")
+		fmt.Println(*currentPath)
+		fmt.Println("-")
+		*currentPath = newPath
 
-	fmt.Println("Current Path has been updated:", *currentPath)
+		fmt.Println("Current Path has been updated:", *currentPath)
+	}
 
 }
 
 func ListFiles(client *http.Client, currentPath string) ([]Item, error) {
 	baseUrl, rootUrl := returnStaticPaths()
+	var url string
+	if currentPath == "" {
+		currentPath = rootUrl
+		url = baseUrl + rootUrl + ":/children"
+		fmt.Println(currentPath)
 
-	url := baseUrl + rootUrl + currentPath + ":/children"
+	} else {
+		url = baseUrl + currentPath + ":/children"
+	}
+
+	fmt.Println(url)
+
+	// url = baseUrl + rootUrl + currentPath + ":/children"
 	req, _ := http.NewRequest("GET", url, nil)
 
 	resp, err := client.Do(req)
@@ -57,10 +85,7 @@ func ListFiles(client *http.Client, currentPath string) ([]Item, error) {
 		Value []Item `json:"value"`
 	}
 
-	err = json.NewDecoder(resp.Body).Decode(&response)
-	if err != nil {
-		return nil, err
-	}
+	json.NewDecoder(resp.Body).Decode(&response)
 
 	return response.Value, nil
 }
@@ -70,18 +95,21 @@ func Menu2(client *http.Client, currentPath *string) {
 	// var files []Item
 
 	for {
+		fmt.Println(currentPath)
 		items, err := ListFiles(client, *currentPath)
 
 		if err != nil {
 			fmt.Println("Error listing files:", err)
 			continue
 		}
+
 		line := bufio.NewReader(os.Stdin)
 		cmd, err := line.ReadString('\n')
 		if err != nil {
 			fmt.Println("Error reading input", err)
 			return
 		}
+
 		cmd = strings.TrimSpace(cmd)
 		if cmd == "ls" {
 			for _, item := range items {
@@ -100,12 +128,15 @@ func Menu2(client *http.Client, currentPath *string) {
 			//TEMP
 			// fmt.Println(cmd)
 			item, exists := directoryExists(items, cmd)
-			if !exists {
+			if !exists && cmd == ".." {
+				ChangeDirectory(cmd, item, currentPath)
+
+			} else if !exists {
 				fmt.Println("That directory doesn't exist")
 				continue
-
 			}
-			ChangeDirectory(item, currentPath)
+
+			ChangeDirectory(cmd, item, currentPath)
 		}
 
 	}
