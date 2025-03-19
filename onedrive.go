@@ -25,31 +25,22 @@ func directoryExists(items []Item, cmd string) (Item, bool) {
 	return Item{}, false
 }
 
-func ChangeDirectory(cmd string, item Item, currentPath *string) {
+func ChangeDirectory(item Item, currentPath *string) {
 	newPath := *currentPath + "/" + item.Name
 	*currentPath = newPath
 
-	fmt.Println("Current Path has been updated:", *currentPath)
+	// fmt.Println("Current Path has been updated:", *currentPath)
 
 }
 
 // Implement a way for the api only to be called once when getting parent information. (remove getParentPath)
 func ListFiles(client *http.Client, currentPath string) ([]Item, error) {
-	baseUrl, rootUrl := returnStaticPaths()
+	baseUrl, _ := returnStaticPaths()
 	var url string
-	//Takes care of first currentPath
-	if currentPath == "" {
-		currentPath = rootUrl
-		url = baseUrl + rootUrl + ":/children"
-		fmt.Println(currentPath)
+	url = baseUrl + currentPath + ":/children"
 
-	} else {
-		url = baseUrl + currentPath + ":/children"
-	}
+	// fmt.Println(url)
 
-	fmt.Println(url)
-
-	// url = baseUrl + rootUrl + currentPath + ":/children"
 	req, _ := http.NewRequest("GET", url, nil)
 
 	resp, err := client.Do(req)
@@ -92,21 +83,22 @@ func getParentPath(client *http.Client, currentPath string) (string, error) {
 		return "", err
 	}
 
-	var response struct {
-		Value Item `json:"value"`
-	}
+	var response Item
+
 	json.NewDecoder(resp.Body).Decode(&response)
 
-	return response.Value.ParentData.Path, err
+	return response.ParentData.Path, err
 
 }
 
 func Menu2(client *http.Client, currentPath *string) {
 	// var cmd string
 	// var files []Item
+	_, rootUrl := returnStaticPaths()
+	*currentPath = rootUrl
 
 	for {
-		fmt.Println(currentPath)
+		// fmt.Println(*currentPath)
 		items, err := ListFiles(client, *currentPath)
 
 		if err != nil {
@@ -132,26 +124,27 @@ func Menu2(client *http.Client, currentPath *string) {
 
 			}
 
+			//This whole thing is strange....?
 		} else if strings.HasPrefix(cmd, "cd") {
-			fmt.Println("inside change directory statement")
+			// fmt.Println("inside change directory statement")
 			cmd = strings.TrimPrefix(cmd, "cd")
 			cmd = strings.TrimSpace(cmd)
-			//TEMP
-			// fmt.Println(cmd)
+
+			//Make a manage command func?
 			if cmd == ".." {
 				*currentPath, err = getParentPath(client, *currentPath)
 				if err != nil {
 					fmt.Println(err)
 				}
+			} else {
+				item, exists := directoryExists(items, cmd)
+				if !exists {
+					fmt.Println("That directory doesn't exist")
+					continue
+				}
+				ChangeDirectory(item, currentPath)
 			}
 
-			item, exists := directoryExists(items, cmd)
-			if !exists {
-				fmt.Println("That directory doesn't exist")
-				continue
-			}
-
-			ChangeDirectory(cmd, item, currentPath)
 		}
 
 	}
