@@ -20,41 +20,24 @@ func directoryExists(items []Item, cmd string) (Item, bool) {
 	for _, item := range items {
 		if item.Name == cmd && item.IsFolder != nil {
 			return item, true
-		} else if cmd == ".." {
-			return item, false
 		}
 	}
 	return Item{}, false
 }
 
-// func getDirectoryPathByItem(item Item) string {
-// 	baseUrl, _ := returnStaticPaths()
-//
-// 	return baseUrl + item.ParentData.Path
-// }
-
 func ChangeDirectory(cmd string, item Item, currentPath *string) {
-	if cmd == ".." {
-		newPath := item.ParentData.Path
-		fmt.Println(newPath)
-		*currentPath = newPath
-		fmt.Println("Current Path has been updated1:", *currentPath)
-	} else {
+	newPath := *currentPath + "/" + item.Name
+	*currentPath = newPath
 
-		newPath := *currentPath + "/" + item.Name
-		fmt.Println("-")
-		fmt.Println(*currentPath)
-		fmt.Println("-")
-		*currentPath = newPath
-
-		fmt.Println("Current Path has been updated:", *currentPath)
-	}
+	fmt.Println("Current Path has been updated:", *currentPath)
 
 }
 
+// Implement a way for the api only to be called once when getting parent information. (remove getParentPath)
 func ListFiles(client *http.Client, currentPath string) ([]Item, error) {
 	baseUrl, rootUrl := returnStaticPaths()
 	var url string
+	//Takes care of first currentPath
 	if currentPath == "" {
 		currentPath = rootUrl
 		url = baseUrl + rootUrl + ":/children"
@@ -88,6 +71,34 @@ func ListFiles(client *http.Client, currentPath string) ([]Item, error) {
 	json.NewDecoder(resp.Body).Decode(&response)
 
 	return response.Value, nil
+}
+
+func getParentPath(client *http.Client, currentPath string) (string, error) {
+	baseUrl, _ := returnStaticPaths()
+	// newPath := "s"
+	// newPath :=
+	url := baseUrl + currentPath
+	req, _ := http.NewRequest("GET", url, nil)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		_, err := io.ReadAll(resp.Body)
+		return "", err
+	}
+
+	var response struct {
+		Value Item `json:"value"`
+	}
+	json.NewDecoder(resp.Body).Decode(&response)
+
+	return response.Value.ParentData.Path, err
+
 }
 
 func Menu2(client *http.Client, currentPath *string) {
@@ -127,11 +138,15 @@ func Menu2(client *http.Client, currentPath *string) {
 			cmd = strings.TrimSpace(cmd)
 			//TEMP
 			// fmt.Println(cmd)
-			item, exists := directoryExists(items, cmd)
-			if !exists && cmd == ".." {
-				ChangeDirectory(cmd, item, currentPath)
+			if cmd == ".." {
+				*currentPath, err = getParentPath(client, *currentPath)
+				if err != nil {
+					fmt.Println(err)
+				}
+			}
 
-			} else if !exists {
+			item, exists := directoryExists(items, cmd)
+			if !exists {
 				fmt.Println("That directory doesn't exist")
 				continue
 			}
