@@ -10,36 +10,42 @@ import (
 	"strings"
 )
 
-func returnStaticPaths() (string, string) {
-	baseUrl := fmt.Sprintf("https://graph.microsoft.com/v1.0/me")
-	rootUrl := fmt.Sprintf("/drives/%s", os.Getenv("SHAREPOINT_PATH"))
-	return baseUrl, rootUrl
+func NewRootItem(sharepoint string) *Item {
+	return &Item{
+		path:   fmt.Sprintf("https://graph.microsoft.com/v1.0/me/drives/%s", sharepoint),
+		parent: nil,
+	}
 }
 
-func directoryExists(items []Item, cmd string) (Item, bool) {
+func directoryExists(items []Item, cmd string) bool {
 	for _, item := range items {
 		if item.Name == cmd && item.IsFolder != nil {
-			return item, true
+			return true
 		}
 	}
-	return Item{}, false
+	return false
 }
 
-func ChangeDirectory(item Item, currentPath *string) {
-	newPath := *currentPath + "/" + item.Name
-	*currentPath = newPath
+func (i *Item) ChangeDirectory(dest string) *Item {
+	if dest == ".." {
+		if i.parent != nil {
+			return i.parent
+		}
+		return i
+	}
+	return &Item{
+		path:   i.path + "/" + dest,
+		parent: i,
+	}
+}
 
-	// fmt.Println("Current Path has been updated:", *currentPath)
-
+func (i *Item) Pwd() string {
+	return i.path
 }
 
 // Implement a way for the api only to be called once when getting parent information. (remove getParentPath)
-func ListFiles(client *http.Client, currentPath string) ([]Item, error) {
-	baseUrl, _ := returnStaticPaths()
-	var url string
-	url = baseUrl + currentPath + ":/children"
-
-	// fmt.Println(url)
+func (i *Item) ListFiles(client *http.Client) ([]Item, error) {
+	url := i.path + ":/children"
 
 	req, _ := http.NewRequest("GET", url, nil)
 
@@ -60,16 +66,16 @@ func ListFiles(client *http.Client, currentPath string) ([]Item, error) {
 	}
 
 	json.NewDecoder(resp.Body).Decode(&response)
+	for iv := range response.Value {
+		response.Value[iv].path = i.path + response.Value[iv].Name
+		response.Value[iv].parent = i
+	}
 
 	return response.Value, nil
 }
 
-func getParentPath(client *http.Client, currentPath string) (string, error) {
-	baseUrl, _ := returnStaticPaths()
-	// newPath := "s"
-	// newPath :=
-	url := baseUrl + currentPath
-	req, _ := http.NewRequest("GET", url, nil)
+func (i *Item) getParentPath(client *http.Client) (string, error) {
+	req, _ := http.NewRequest("GET", i.path, nil)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -88,18 +94,14 @@ func getParentPath(client *http.Client, currentPath string) (string, error) {
 	json.NewDecoder(resp.Body).Decode(&response)
 
 	return response.ParentData.Path, err
-
 }
 
-func Menu2(client *http.Client, currentPath *string) {
-	// var cmd string
-	// var files []Item
-	_, rootUrl := returnStaticPaths()
-	*currentPath = rootUrl
+func Menu2(client *http.Client, sharePoint string) {
+	item := NewRootItem(sharePoint)
 
 	for {
-		// fmt.Println(*currentPath)
-		items, err := ListFiles(client, *currentPath)
+		fmt.Print("> ")
+		items, err := item.ListFiles(client)
 
 		if err != nil {
 			fmt.Println("Error listing files:", err)
@@ -121,32 +123,24 @@ func Menu2(client *http.Client, currentPath *string) {
 				} else {
 					fmt.Println("FILE: ", item.Name)
 				}
-
 			}
 
 			//This whole thing is strange....?
 		} else if strings.HasPrefix(cmd, "cd") {
-			// fmt.Println("inside change directory statement")
 			cmd = strings.TrimPrefix(cmd, "cd")
 			cmd = strings.TrimSpace(cmd)
 
-			//Make a manage command func?
-			if cmd == ".." {
-				*currentPath, err = getParentPath(client, *currentPath)
-				if err != nil {
-					fmt.Println(err)
-				}
-			} else {
-				item, exists := directoryExists(items, cmd)
-				if !exists {
-					fmt.Println("That directory doesn't exist")
-					continue
-				}
-				ChangeDirectory(item, currentPath)
+			if cmd != ".." && !directoryExists(items, cmd) {
+				fmt.Println("That directory doesn't exist")
+				continue
 			}
+			item = item.ChangeDirectory(cmd)
 
+		} else if strings.HasPrefix(cmd, "pwd") {
+			cmd = strings.TrimPrefix(cmd, "pwd")
+			cmd = strings.TrimSpace(cmd)
+
+			fmt.Println(item.Pwd())
 		}
-
 	}
-
 }

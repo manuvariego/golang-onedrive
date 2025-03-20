@@ -11,13 +11,17 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func NewOauthConfig() *oauth2.Config {
-	authUrl := fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/authorize", os.Getenv("MS_OPENGRAPH_TENANT_ID"))
-	tokenUrl := fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", os.Getenv("MS_OPENGRAPH_TENANT_ID"))
+func NewOauthConfig(tenantID, appID, clientSecret string, scopes []string) *oauth2.Config {
+	if tenantID == "" || appID == "" || clientSecret == "" {
+		panic("the enviroment variables cant be empty")
+	}
+
+	authUrl := fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/authorize", tenantID)
+	tokenUrl := fmt.Sprintf("https://login.microsoftonline.com/%s/oauth2/v2.0/token", tenantID)
 	return &oauth2.Config{
-		ClientID:     os.Getenv("MS_OPENGRAPH_APP_ID"),
-		ClientSecret: os.Getenv("MS_OPENGRAPH_CLIENT_SECRET"),
-		Scopes:       []string{"User.Read", "offline_access", "Sites.Read.All", "Files.ReadWrite.All"},
+		Scopes:       scopes,
+		ClientID:     appID,
+		ClientSecret: clientSecret,
 		//Temp for development
 		RedirectURL: "https://localhost:3000",
 		Endpoint: oauth2.Endpoint{
@@ -58,11 +62,9 @@ func LoadToken() (*oauth2.Token, error) {
 	err = json.Unmarshal(data, &token)
 
 	return &token, err
-
 }
 
 func GetInitialTokens(conf *oauth2.Config) *oauth2.Token {
-
 	verifier := oauth2.GenerateVerifier()
 
 	url := conf.AuthCodeURL("state", oauth2.AccessTypeOffline, oauth2.S256ChallengeOption(verifier))
@@ -82,7 +84,6 @@ func GetInitialTokens(conf *oauth2.Config) *oauth2.Token {
 	}
 
 	return tok
-
 }
 
 func GetValidToken(conf *oauth2.Config) (*oauth2.Token, error) {
