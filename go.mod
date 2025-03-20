@@ -1,4 +1,4 @@
-module teti/onedrive-go
+module github.com/manuvariego/golang-onedrive
 
 go 1.24.1
 

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"slices"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -39,14 +38,13 @@ func main() {
 	od := OneDriveClient{Client: client, Path: Path{CurrentPath: rootUrl}}
 
 	//Testing purposes it is iterated
-	// fmt.Println("Current Path:", od.Pwd().CurrentPath)
 
 	for {
-		folders, files, err := od.Ls()
+		directories, files, err := od.Ls()
 		if err != nil {
-			fmt.Println("Error listing folders and files:", err)
+			fmt.Println("Error listing directories and files:", err)
 		} else {
-			fmt.Println("Folders:", folders)
+			fmt.Println("Directories:", directories)
 			fmt.Println("Files:", files)
 		}
 
@@ -58,8 +56,8 @@ func main() {
 		}
 
 		cmd = strings.TrimSpace(cmd)
-		isFile := slices.Contains(files, cmd)
-		isFolder := slices.Contains(folders, cmd)
+		isFile := od.IsFile(files, cmd)
+		isDirectory := od.IsDirectory(directories, cmd)
 
 		if isFile {
 			dwnloadUrl, err := od.GetDownloadUrl(cmd)
@@ -69,7 +67,7 @@ func main() {
 			fmt.Println(dwnloadUrl)
 		}
 
-		if isFolder {
+		if isDirectory {
 			newPath, err := od.Cd(cmd)
 			if err != nil {
 				fmt.Println("Error changing directory: ", err)

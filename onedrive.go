@@ -6,21 +6,13 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
 )
 
 func ReturnStaticPaths() (string, string) {
 	baseUrl := fmt.Sprintf("https://graph.microsoft.com/v1.0/me")
 	rootUrl := fmt.Sprintf("/drives/%s", os.Getenv("SHAREPOINT_PATH"))
 	return baseUrl, rootUrl
-}
-
-func directoryExists(items []Item, cmd string) (Item, bool) {
-	for _, item := range items {
-		if item.Name == cmd && item.IsFolder != nil {
-			return item, true
-		}
-	}
-	return Item{}, false
 }
 
 func (od *OneDriveClient) Pwd() Path {
@@ -40,6 +32,22 @@ func (od *OneDriveClient) GetDownloadUrl(itemName string) (string, error) {
 
 	}
 	return "", nil
+}
+
+func (od *OneDriveClient) IsDirectory(directories []string, directory string) bool {
+	exists := slices.Contains(directories, directory)
+	if !exists {
+		return false
+	}
+	return true
+}
+
+func (od *OneDriveClient) IsFile(files []string, file string) bool {
+	exists := slices.Contains(files, file)
+	if !exists {
+		return false
+	}
+	return true
 }
 
 func (od *OneDriveClient) Ls() ([]string, []string, error) {
@@ -63,9 +71,9 @@ func (od *OneDriveClient) Ls() ([]string, []string, error) {
 	return folders, files, nil
 }
 
-func (od *OneDriveClient) Cd(folder string) (Path, error) {
+func (od *OneDriveClient) Cd(directory string) (Path, error) {
 
-	od.Path.CurrentPath += "/" + folder
+	od.Path.CurrentPath += "/" + directory
 	return od.Path, nil
 }
 
