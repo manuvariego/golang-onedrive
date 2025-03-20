@@ -16,3 +16,8 @@ type ParentReference struct {
 	Path string `json:"path"`
 	Name string `json:"name"`
 }
+
+type Path struct {
+	CurrentPath string
+	ParentPath  string
+}

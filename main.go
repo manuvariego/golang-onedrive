@@ -10,6 +10,7 @@ import (
 )
 
 func main() {
+
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file", err)
@@ -31,7 +32,7 @@ func main() {
 		}
 	}
 
-	//Client used to make reqs to Onedrive API (or sharepoint) depends.. 8D (es una carita)
 	client, err := GetClient(oauthconf)
 	Menu2(client, sharePoint)
+
 }
