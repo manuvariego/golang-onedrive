@@ -3,15 +3,17 @@ package main
 import (
 	// "context"
 
+	"bufio"
 	"fmt"
 	"log"
+	"os"
+	"slices"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
 
 func main() {
-
-	//currentPath could be global across packages?
 
 	err := godotenv.Load()
 	if err != nil {
@@ -29,23 +31,53 @@ func main() {
 		}
 	}
 
-	var path Path
 	client, err := GetClient(oauthconf)
-	path.CurrentPath = ""
 
-	//Client used to make reqs to Onedrive API (or sharepoint) depends.. 8D (es una carita)
+	_, rootUrl := ReturnStaticPaths()
+
+	//Creates onedriveclient with the data
+	od := OneDriveClient{Client: client, Path: Path{CurrentPath: rootUrl}}
+
+	//Testing purposes it is iterated
+	// fmt.Println("Current Path:", od.Pwd().CurrentPath)
+
 	for {
-		items, err := GetFiles(client, &path)
+		folders, files, err := od.Ls()
 		if err != nil {
-			fmt.Println("t")
-		}
-		ListFiles(items, &path)
-		bool := ChangeDirectory(items, "cd", &path)
-		fmt.Println(path.CurrentPath)
-		if !bool {
-			fmt.Println("cd didn't work")
+			fmt.Println("Error listing folders and files:", err)
+		} else {
+			fmt.Println("Folders:", folders)
+			fmt.Println("Files:", files)
 		}
 
+		line := bufio.NewReader(os.Stdin)
+		cmd, err := line.ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading input", err)
+			return
+		}
+
+		cmd = strings.TrimSpace(cmd)
+		isFile := slices.Contains(files, cmd)
+		isFolder := slices.Contains(folders, cmd)
+
+		if isFile {
+			dwnloadUrl, err := od.GetDownloadUrl(cmd)
+			if err != nil {
+				fmt.Println(err)
+			}
+			fmt.Println(dwnloadUrl)
+		}
+
+		if isFolder {
+			newPath, err := od.Cd(cmd)
+			if err != nil {
+				fmt.Println("Error changing directory: ", err)
+			} else {
+				fmt.Println("New Path: ", newPath.CurrentPath)
+
+			}
+
+		}
 	}
-
 }

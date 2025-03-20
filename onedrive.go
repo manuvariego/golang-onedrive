@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-func returnStaticPaths() (string, string) {
+func ReturnStaticPaths() (string, string) {
 	baseUrl := fmt.Sprintf("https://graph.microsoft.com/v1.0/me")
 	rootUrl := fmt.Sprintf("/drives/%s", os.Getenv("SHAREPOINT_PATH"))
 	return baseUrl, rootUrl
@@ -23,43 +23,60 @@ func directoryExists(items []Item, cmd string) (Item, bool) {
 	return Item{}, false
 }
 
-func ChangeDirectory(items []Item, directory string, path *Path) bool {
-	item, exists := directoryExists(items, directory)
-	if !exists {
-		fmt.Println("That directory doesn't exist")
-		return false
-	} else {
-		path.CurrentPath += "/" + item.Name
-		return true
-	}
-
-	// fmt.Println("Current Path has been updated:", *currentPath)
+func (od *OneDriveClient) Pwd() Path {
+	return od.Path
 }
 
-func ListFiles(items []Item, path *Path) {
+func (od *OneDriveClient) GetDownloadUrl(itemName string) (string, error) {
+	items, err := od.GetFiles()
+	if err != nil {
+		return "", err
+	}
 
 	for _, item := range items {
-		if item.IsFolder != nil {
-			fmt.Println("DIR: ", item.Name)
-		} else {
-			fmt.Println("FILE: ", item.Name)
+		if item.Name == itemName {
+			return item.DownloadUrl, nil
 		}
 
 	}
+	return "", nil
 }
 
-// Implement a way for the api only to be called once when getting parent information. (remove getParentPath)
-func GetFiles(client *http.Client, path *Path) ([]Item, error) {
-	baseUrl, _ := returnStaticPaths()
-	var url string
-	// path.CurrentPath :
-	url = baseUrl + path.CurrentPath + ":/children"
+func (od *OneDriveClient) Ls() ([]string, []string, error) {
+	items, err := od.GetFiles()
+	if err != nil {
+		return nil, nil, err
+	}
+	// fmt.Println(items)
 
-	fmt.Println(url)
+	var folders []string
+	var files []string
+	for _, item := range items {
+		if item.IsFolder != nil {
+			folders = append(folders, item.Name)
+		} else if item.DownloadUrl != "" {
+			files = append(files, item.Name)
+		}
+
+	}
+
+	return folders, files, nil
+}
+
+func (od *OneDriveClient) Cd(folder string) (Path, error) {
+
+	od.Path.CurrentPath += "/" + folder
+	return od.Path, nil
+}
+
+func (od *OneDriveClient) GetFiles() ([]Item, error) {
+	baseUrl, _ := ReturnStaticPaths()
+	// path.CurrentPath :
+	url := baseUrl + od.Path.CurrentPath + ":/children"
 
 	req, _ := http.NewRequest("GET", url, nil)
 
-	resp, err := client.Do(req)
+	resp, err := od.Client.Do(req)
 	if err != nil {
 		return nil, err
 	}
