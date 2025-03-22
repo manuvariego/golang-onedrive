@@ -6,6 +6,9 @@ import (
 	"io"
 	"net/http"
 	"slices"
+
+	// "strings"
+	"time"
 )
 
 func GetBaseUrl() string {
@@ -17,92 +20,133 @@ func GetRootUrl(sharePoint string) string {
 
 }
 
-func (od *OneDriveClient) Pwd() Path {
-	return od.Path
+func IsDirectory(directories []string, directory string) bool {
+	return slices.Contains(directories, directory)
 }
 
-func (od *OneDriveClient) GetDownloadUrl(itemName string) (string, error) {
-	items, err := od.GetFiles()
-	if err != nil {
-		return "", err
-	}
-
-	for _, item := range items {
-		if item.Name == itemName {
-			return item.DownloadUrl, nil
+func IsFile(currentDir *Directory, fileName string) (File, bool) {
+	for _, file := range currentDir.Files {
+		if file.Name == fileName {
+			return file, true
 		}
-
 	}
-	return "", nil
+	return File{}, false
 }
 
-func (od *OneDriveClient) IsDirectory(directories []string, directory string) bool {
-	exists := slices.Contains(directories, directory)
-	if !exists {
-		return false
-	}
-	return true
+func (od *OneDriveClient) LoadOneDrive(rootDir *Directory, rootUrl string) error {
+	return od.FetchFileTree(rootDir, rootUrl)
 }
 
-func (od *OneDriveClient) IsFile(files []string, file string) bool {
-	exists := slices.Contains(files, file)
-	if !exists {
-		return false
-	}
-	return true
-}
-
-func (od *OneDriveClient) Ls() ([]string, []string, error) {
-	items, err := od.GetFiles()
-	if err != nil {
-		return nil, nil, err
-	}
+func Ls(currentDir *Directory) ([]string, []string, error) {
 	// fmt.Println(items)
-
-	var folders []string
+	var directories []string
 	var files []string
-	for _, item := range items {
-		if item.IsFolder != nil {
-			folders = append(folders, item.Name)
-		} else if item.DownloadUrl != "" {
-			files = append(files, item.Name)
-		}
 
+	for _, directory := range currentDir.Children {
+		directories = append(directories, directory.Name)
 	}
 
-	return folders, files, nil
+	for _, file := range currentDir.Files {
+		files = append(files, file.Name)
+	}
+
+	return directories, files, nil
 }
 
-func (od *OneDriveClient) Cd(directory string) (Path, error) {
+func Cd(cmd string, currentDir *Directory) (*Directory, error) {
+	for _, directory := range currentDir.Children {
+		if directory.Name == cmd {
+			return &directory, nil
+		}
+	}
+	return nil, fmt.Errorf("Error not a valid directory")
 
-	od.Path.CurrentPath += "/" + directory
-	return od.Path, nil
 }
 
-func (od *OneDriveClient) GetFiles() ([]Item, error) {
+func (od *OneDriveClient) GetDownloadUrl(fileName string, currentDir *Directory, drivePath string) (string, error) {
+	file, exists := IsFile(currentDir, fileName)
+	if !exists {
+		return "", fmt.Errorf("Not a valid file")
+
+	} else {
+		fmt.Println(file.Id)
+		return od.FetchDownloadUrl(file.Id, drivePath)
+	}
+}
+
+func (od *OneDriveClient) FetchFileTree(parentDirectory *Directory, path string) error {
+	duration := time.Duration(100) * time.Millisecond
+	time.Sleep(duration)
 	baseUrl := GetBaseUrl()
 	// path.CurrentPath :
-	url := baseUrl + od.Path.CurrentPath + ":/children"
+	url := baseUrl + path + ":/children"
+	fmt.Printf("Current Path: %s", path)
 
 	req, _ := http.NewRequest("GET", url, nil)
 
 	resp, err := od.Client.Do(req)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		_, err := io.ReadAll(resp.Body)
-		return nil, err
+		return err
 	}
 
 	var response struct {
-		Value []Item `json:"value"`
+		Value []struct {
+			Name   string    `json:"name"`
+			Id     string    `json:"id"`
+			Folder *struct{} `json:"folder,omitempty"`
+			File   *struct{} `json:"file,omitempty"`
+			// DownloadUrl string    `json:"@microsoft.graph.downloadUrl,omitempty"`
+		}
+	}
+
+	json.NewDecoder(resp.Body).Decode(&response)
+	fmt.Println(response)
+
+	for _, item := range response.Value {
+		if item.Folder != nil {
+			newDirectory := Directory{Name: item.Name}
+			parentDirectory.Children = append(parentDirectory.Children, newDirectory)
+			//Recursivamente recorre el arbol, [len(parentDirectory.Children)-1] esto hace referencia al directorio recien agregado
+			od.FetchFileTree(&parentDirectory.Children[len(parentDirectory.Children)-1], path+"/"+item.Name)
+		} else if item.File != nil {
+			parentDirectory.Files = append(parentDirectory.Files, File{Name: item.Name, Id: item.Id})
+		}
+	}
+
+	return nil
+}
+
+func (od *OneDriveClient) FetchDownloadUrl(itemId string, path string) (string, error) {
+	baseUrl := GetBaseUrl()
+
+	url := baseUrl + path + "/items/" + itemId
+
+	req, _ := http.NewRequest("GET", url, nil)
+
+	resp, err := od.Client.Do(req)
+	if err != nil {
+		return "", err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		_, err := io.ReadAll(resp.Body)
+		return "", err
+	}
+
+	var response struct {
+		DownloadUrl string `json:"@microsoft.graph.downloadUrl"`
 	}
 
 	json.NewDecoder(resp.Body).Decode(&response)
 
-	return response.Value, nil
+	return response.DownloadUrl, nil
 }

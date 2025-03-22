@@ -4,6 +4,7 @@ import (
 	// "context"
 
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -26,7 +27,8 @@ func main() {
 	tenantID := os.Getenv("MS_TENANT_ID")
 	appID := os.Getenv("MS_OPENGRAPH_APP_ID")
 	clientSecret := os.Getenv("MS_OPENGRAPH_CLIENT_SECRET")
-	sharePoint := os.Getenv("SHAREPOINT_PATH")
+	sharePointDrive := os.Getenv("SHAREPOINT_DRIVE")
+	sharePointPath := os.Getenv("SHAREPOINT_PATH")
 	oauthconf := onedrive.NewOauthConfig(tenantID, appID, clientSecret, scopes)
 
 	//Checks if token.json exists, if it doesn't it is created with a new code from user
@@ -40,15 +42,37 @@ func main() {
 
 	client, err := onedrive.GetClient(oauthconf)
 
+	sharePoint := sharePointDrive + sharePointPath
+
 	rootUrl := onedrive.GetRootUrl(sharePoint)
+	driveUrl := onedrive.GetRootUrl(sharePointDrive)
 
 	//Creates onedriveclient with the data
 	od := onedrive.OneDriveClient{Client: client, Path: onedrive.Path{CurrentPath: rootUrl}}
 
+	// var oneDriveRoot = onedrive.Directory{Name: "root"}
+
+	// err = od.LoadOneDrive(&oneDriveRoot, rootUrl)
+	// data, err := json.Marshal(oneDriveRoot)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// os.WriteFile("output.json", data, 0666)
+	// if err != nil {
+	// 	fmt.Println("Error:", err)
+	// 	return
+	// }
+	var currentDir onedrive.Directory
+
+	data, err := os.ReadFile("output.json")
+
+	err = json.Unmarshal(data, &currentDir)
+
 	//Testing purposes it is iterated
 
 	for {
-		directories, files, err := od.Ls()
+		// fmt.Println(&currentDir)
+		directories, files, err := onedrive.Ls(&currentDir)
 		if err != nil {
 			fmt.Println("Error listing directories and files:", err)
 		} else {
@@ -64,11 +88,11 @@ func main() {
 		}
 
 		cmd = strings.TrimSpace(cmd)
-		isFile := od.IsFile(files, cmd)
-		isDirectory := od.IsDirectory(directories, cmd)
+		_, isFile := onedrive.IsFile(&currentDir, cmd)
+		isDirectory := onedrive.IsDirectory(directories, cmd)
 
 		if isFile {
-			dwnloadUrl, err := od.GetDownloadUrl(cmd)
+			dwnloadUrl, err := od.GetDownloadUrl(cmd, &currentDir, driveUrl)
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -76,11 +100,13 @@ func main() {
 		}
 
 		if isDirectory {
-			newPath, err := od.Cd(cmd)
+			fmt.Println("here")
+			newDir, err := onedrive.Cd(cmd, &currentDir)
+			currentDir = *newDir
 			if err != nil {
 				fmt.Println("Error changing directory: ", err)
 			} else {
-				fmt.Println("New Path: ", newPath.CurrentPath)
+				// fmt.Println("New Path: ", newPath.CurrentPath)
 
 			}
 

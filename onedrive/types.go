@@ -1,6 +1,23 @@
 package onedrive
 
-import "net/http"
+import (
+	"net/http"
+	"sync"
+)
+
+var oneDriveRoot = Directory{Name: "root"}
+var mu sync.Mutex
+
+type OneDriver interface {
+	Pwd() Path
+	Ls() ([]string, error)
+	Cd(folder string) (Path, error)
+}
+
+type OneDriveClient struct {
+	Client *http.Client
+	Path   Path
+}
 
 // A single DriveItem from the OneDrive API (modifiable)
 type Item struct {
@@ -10,22 +27,18 @@ type Item struct {
 	DownloadUrl string `json:"@microsoft.graph.downloadUrl"`
 }
 
-// type ParentReference struct {
-// 	Path string `json:"path"`
-// 	Name string `json:"name"`
-// }
+type Directory struct {
+	Name     string      `json:"name"`
+	Files    []File      `json:"files,omitempty"`
+	Children []Directory `json:"folders,omitempty"`
+}
+
+type File struct {
+	Id          string `json:"id"`
+	Name        string `json:"name"`
+	DownloadUrl string `json:"download_url"`
+}
 
 type Path struct {
 	CurrentPath string
-}
-
-type OneDriveClient struct {
-	Client *http.Client
-	Path   Path
-}
-
-type OneDriver interface {
-	Pwd() Path
-	Ls() ([]string, error)
-	Cd(folder string) (Path, error)
 }
