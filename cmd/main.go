@@ -41,38 +41,59 @@ func main() {
 	}
 
 	client, err := onedrive.GetClient(oauthconf)
-
 	sharePoint := sharePointDrive + sharePointPath
 
-	rootUrl := onedrive.GetRootUrl(sharePoint)
-	driveUrl := onedrive.GetRootUrl(sharePointDrive)
+	// rootUrl := onedrive.GetRootUrl(sharePoint)
+	// driveUrl := onedrive.GetRootUrl(sharePointDrive)
 
 	//Creates onedriveclient with the data
-	od := onedrive.OneDriveClient{Client: client, Path: onedrive.Path{CurrentPath: rootUrl}}
+	// od := onedrive.OneDriveClient{Client: client, CurrentDir: &onedrive.Directory{Name: "root"}}
 
-	// var oneDriveRoot = onedrive.Directory{Name: "root"}
+	var root *onedrive.Directory
 
-	// err = od.LoadOneDrive(&oneDriveRoot, rootUrl)
-	// data, err := json.Marshal(oneDriveRoot)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-	// os.WriteFile("output.json", data, 0666)
-	// if err != nil {
-	// 	fmt.Println("Error:", err)
-	// 	return
-	// }
-	var currentDir onedrive.Directory
-
+	fetchTree := false
 	data, err := os.ReadFile("output.json")
+	if err != nil {
+		fmt.Printf("error reading tree file")
+		fetchTree = true
+	}
 
-	err = json.Unmarshal(data, &currentDir)
+	err = json.Unmarshal(data, &root)
+	if err != nil {
+
+		fmt.Printf("\nerror unmarshalling tree: %v\n", err)
+		fetchTree = true
+	}
+
+	// err = od.LoadOneDrive(od.CurrentDir, rootUrl)
+
+	if fetchTree {
+		root = onedrive.NewRootDir(sharePoint)
+		onedrive.FetchFileTree(client, root)
+		fmt.Println(root)
+
+		data, err = json.Marshal(&root)
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+
+		err = os.WriteFile("output.json", data, 0666)
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+	} else {
+		onedrive.SetParents(root, nil)
+	}
+
+	// var rootDir onedrive.Directory
+	// var currentDir onedrive.Directory
 
 	//Testing purposes it is iterated
 
 	for {
-		// fmt.Println(&currentDir)
-		directories, files, err := onedrive.Ls(&currentDir)
+		directories, files, err := root.Ls()
 		if err != nil {
 			fmt.Println("Error listing directories and files:", err)
 		} else {
@@ -88,28 +109,66 @@ func main() {
 		}
 
 		cmd = strings.TrimSpace(cmd)
-		_, isFile := onedrive.IsFile(&currentDir, cmd)
-		isDirectory := onedrive.IsDirectory(directories, cmd)
+		// _, isFile := onedrive.IsFile(&currentDir, cmd)
+		// isDirectory := onedrive.IsDirectory(directories, cmd)
+		//
+		// if isFile {
+		// 	dwnloadUrl, err := od.GetDownloadUrl(cmd, &currentDir, driveUrl)
+		// 	if err != nil {
+		// 		fmt.Println(err)
+		// 	}
+		// 	fmt.Println(dwnloadUrl)
+		// }
 
-		if isFile {
-			dwnloadUrl, err := od.GetDownloadUrl(cmd, &currentDir, driveUrl)
-			if err != nil {
-				fmt.Println(err)
-			}
-			fmt.Println(dwnloadUrl)
+		newRoot, err := root.Cd(cmd)
+		if err != nil {
+			fmt.Println("Error changing directory: ", err)
+			continue
 		}
 
-		if isDirectory {
-			fmt.Println("here")
-			newDir, err := onedrive.Cd(cmd, &currentDir)
-			currentDir = *newDir
-			if err != nil {
-				fmt.Println("Error changing directory: ", err)
-			} else {
-				// fmt.Println("New Path: ", newPath.CurrentPath)
-
-			}
-
-		}
+		root = newRoot
 	}
+	// for {
+	// 	// fmt.Println(&currentDir)
+	// 	directories, files, err := onedrive.Ls(&currentDir)
+	// 	if err != nil {
+	// 		fmt.Println("Error listing directories and files:", err)
+	// 	} else {
+	// 		fmt.Println("Directories:", directories)
+	// 		fmt.Println("Files:", files)
+	// 	}
+	//
+	// 	line := bufio.NewReader(os.Stdin)
+	// 	cmd, err := line.ReadString('\n')
+	// 	if err != nil {
+	// 		fmt.Println("Error reading input", err)
+	// 		return
+	// 	}
+	//
+	// 	cmd = strings.TrimSpace(cmd)
+	// 	_, isFile := onedrive.IsFile(&currentDir, cmd)
+	// 	isDirectory := onedrive.IsDirectory(directories, cmd)
+	//
+	// 	if isFile {
+	// 		dwnloadUrl, err := od.GetDownloadUrl(cmd, &currentDir, driveUrl)
+	// 		if err != nil {
+	// 			fmt.Println(err)
+	// 		}
+	// 		fmt.Println(dwnloadUrl)
+	// 	}
+	//
+	// 	if isDirectory {
+	// 		fmt.Println("here")
+	// 		newDir, err := onedrive.Cd(cmd, &currentDir)
+	// 		currentDir = *newDir
+	// 		fmt.Println(currentDir)
+	// 		if err != nil {
+	// 			fmt.Println("Error changing directory: ", err)
+	// 		} else {
+	// 			// fmt.Println("New Path: ", newPath.CurrentPath)
+	//
+	// 		}
+	//
+	// 	}
+	// }
 }

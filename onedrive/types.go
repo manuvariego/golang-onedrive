@@ -2,11 +2,7 @@ package onedrive
 
 import (
 	"net/http"
-	"sync"
 )
-
-var oneDriveRoot = Directory{Name: "root"}
-var mu sync.Mutex
 
 type OneDriver interface {
 	Pwd() Path
@@ -15,8 +11,9 @@ type OneDriver interface {
 }
 
 type OneDriveClient struct {
-	Client *http.Client
-	Path   Path
+	Client     *http.Client
+	CurrentDir *Directory
+	RootDir    Directory
 }
 
 // A single DriveItem from the OneDrive API (modifiable)
@@ -28,9 +25,11 @@ type Item struct {
 }
 
 type Directory struct {
-	Name     string      `json:"name"`
-	Files    []File      `json:"files,omitempty"`
-	Children []Directory `json:"folders,omitempty"`
+	Path     string       `json:"path"`
+	Name     string       `json:"name"`
+	Files    []File       `json:"files,omitempty"`
+	Children []*Directory `json:"folders,omitempty"`
+	Parent   *Directory   `json:"-"`
 }
 
 type File struct {
