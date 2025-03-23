@@ -5,15 +5,13 @@ import (
 )
 
 type OneDriver interface {
-	Pwd() Path
-	Ls() ([]string, error)
-	Cd(folder string) (Path, error)
+	Ls() ([]string, []string, error)
+	Cd(directory string) (*Directory, error)
 }
 
 type OneDriveClient struct {
-	Client     *http.Client
-	CurrentDir *Directory
-	RootDir    Directory
+	Client  *http.Client
+	RootDir Directory
 }
 
 // A single DriveItem from the OneDrive API (modifiable)
@@ -27,7 +25,7 @@ type Item struct {
 type Directory struct {
 	Path     string       `json:"path"`
 	Name     string       `json:"name"`
-	Files    []File       `json:"files,omitempty"`
+	Files    []*File      `json:"files,omitempty"`
 	Children []*Directory `json:"folders,omitempty"`
 	Parent   *Directory   `json:"-"`
 }
@@ -36,8 +34,4 @@ type File struct {
 	Id          string `json:"id"`
 	Name        string `json:"name"`
 	DownloadUrl string `json:"download_url"`
-}
-
-type Path struct {
-	CurrentPath string
 }

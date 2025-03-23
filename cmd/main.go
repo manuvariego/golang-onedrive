@@ -27,8 +27,8 @@ func main() {
 	tenantID := os.Getenv("MS_TENANT_ID")
 	appID := os.Getenv("MS_OPENGRAPH_APP_ID")
 	clientSecret := os.Getenv("MS_OPENGRAPH_CLIENT_SECRET")
-	sharePointDrive := os.Getenv("SHAREPOINT_DRIVE")
-	sharePointPath := os.Getenv("SHAREPOINT_PATH")
+	sharePoint := os.Getenv("SHAREPOINT_PATH")
+
 	oauthconf := onedrive.NewOauthConfig(tenantID, appID, clientSecret, scopes)
 
 	//Checks if token.json exists, if it doesn't it is created with a new code from user
@@ -41,7 +41,6 @@ func main() {
 	}
 
 	client, err := onedrive.GetClient(oauthconf)
-	sharePoint := sharePointDrive + sharePointPath
 
 	// rootUrl := onedrive.GetRootUrl(sharePoint)
 	// driveUrl := onedrive.GetRootUrl(sharePointDrive)
@@ -87,9 +86,6 @@ func main() {
 		onedrive.SetParents(root, nil)
 	}
 
-	// var rootDir onedrive.Directory
-	// var currentDir onedrive.Directory
-
 	//Testing purposes it is iterated
 
 	for {
@@ -109,16 +105,10 @@ func main() {
 		}
 
 		cmd = strings.TrimSpace(cmd)
-		// _, isFile := onedrive.IsFile(&currentDir, cmd)
-		// isDirectory := onedrive.IsDirectory(directories, cmd)
-		//
-		// if isFile {
-		// 	dwnloadUrl, err := od.GetDownloadUrl(cmd, &currentDir, driveUrl)
-		// 	if err != nil {
-		// 		fmt.Println(err)
-		// 	}
-		// 	fmt.Println(dwnloadUrl)
-		// }
+		file, isFile := root.IsFile(cmd)
+		if isFile {
+			fmt.Println(file.DownloadUrl)
+		}
 
 		newRoot, err := root.Cd(cmd)
 		if err != nil {
@@ -128,47 +118,4 @@ func main() {
 
 		root = newRoot
 	}
-	// for {
-	// 	// fmt.Println(&currentDir)
-	// 	directories, files, err := onedrive.Ls(&currentDir)
-	// 	if err != nil {
-	// 		fmt.Println("Error listing directories and files:", err)
-	// 	} else {
-	// 		fmt.Println("Directories:", directories)
-	// 		fmt.Println("Files:", files)
-	// 	}
-	//
-	// 	line := bufio.NewReader(os.Stdin)
-	// 	cmd, err := line.ReadString('\n')
-	// 	if err != nil {
-	// 		fmt.Println("Error reading input", err)
-	// 		return
-	// 	}
-	//
-	// 	cmd = strings.TrimSpace(cmd)
-	// 	_, isFile := onedrive.IsFile(&currentDir, cmd)
-	// 	isDirectory := onedrive.IsDirectory(directories, cmd)
-	//
-	// 	if isFile {
-	// 		dwnloadUrl, err := od.GetDownloadUrl(cmd, &currentDir, driveUrl)
-	// 		if err != nil {
-	// 			fmt.Println(err)
-	// 		}
-	// 		fmt.Println(dwnloadUrl)
-	// 	}
-	//
-	// 	if isDirectory {
-	// 		fmt.Println("here")
-	// 		newDir, err := onedrive.Cd(cmd, &currentDir)
-	// 		currentDir = *newDir
-	// 		fmt.Println(currentDir)
-	// 		if err != nil {
-	// 			fmt.Println("Error changing directory: ", err)
-	// 		} else {
-	// 			// fmt.Println("New Path: ", newPath.CurrentPath)
-	//
-	// 		}
-	//
-	// 	}
-	// }
 }

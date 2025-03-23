@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"slices"
 	// "strings"
 )
 
@@ -17,17 +16,13 @@ func GetRootUrl(sharePoint string) string {
 	return fmt.Sprintf("/drives/%s", sharePoint)
 }
 
-func IsDirectory(directories []string, directory string) bool {
-	return slices.Contains(directories, directory)
-}
-
-func (d *Directory) IsFile(fileName string) (File, bool) {
+func (d *Directory) IsFile(fileName string) (*File, bool) {
 	for _, file := range d.Files {
 		if file.Name == fileName {
 			return file, true
 		}
 	}
-	return File{}, false
+	return &File{}, false
 }
 
 func SetParents(d *Directory, parent *Directory) {
@@ -108,7 +103,7 @@ func FetchFileTree(client *http.Client, root *Directory) error {
 			root.Children = append(root.Children, newDirectory)
 			FetchFileTree(client, newDirectory)
 		} else {
-			root.Files = append(root.Files, File{Name: item.Name, Id: item.ID})
+			root.Files = append(root.Files, &File{Name: item.Name, Id: item.ID, DownloadUrl: item.DownloadUrl})
 		}
 	}
 
