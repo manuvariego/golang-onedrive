@@ -42,9 +42,6 @@ func main() {
 
 	client, err := onedrive.GetClient(oauthconf)
 
-	// rootUrl := onedrive.GetRootUrl(sharePoint)
-	// driveUrl := onedrive.GetRootUrl(sharePointDrive)
-
 	//Creates onedriveclient with the data
 	// od := onedrive.OneDriveClient{Client: client, CurrentDir: &onedrive.Directory{Name: "root"}}
 
@@ -108,6 +105,7 @@ func main() {
 		file, isFile := root.IsFile(cmd)
 		if isFile {
 			fmt.Println(file.DownloadUrl)
+			continue
 		}
 
 		newRoot, err := root.Cd(cmd)
