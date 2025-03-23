@@ -4,6 +4,7 @@ import (
 	// "context"
 
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -27,6 +28,7 @@ func main() {
 	appID := os.Getenv("MS_OPENGRAPH_APP_ID")
 	clientSecret := os.Getenv("MS_OPENGRAPH_CLIENT_SECRET")
 	sharePoint := os.Getenv("SHAREPOINT_PATH")
+
 	oauthconf := onedrive.NewOauthConfig(tenantID, appID, clientSecret, scopes)
 
 	//Checks if token.json exists, if it doesn't it is created with a new code from user
@@ -40,15 +42,51 @@ func main() {
 
 	client, err := onedrive.GetClient(oauthconf)
 
-	rootUrl := onedrive.GetRootUrl(sharePoint)
-
 	//Creates onedriveclient with the data
-	od := onedrive.OneDriveClient{Client: client, Path: onedrive.Path{CurrentPath: rootUrl}}
+	// od := onedrive.OneDriveClient{Client: client, CurrentDir: &onedrive.Directory{Name: "root"}}
+
+	var root *onedrive.Directory
+
+	fetchTree := false
+	data, err := os.ReadFile("output.json")
+	if err != nil {
+		fmt.Printf("error reading tree file")
+		fetchTree = true
+	}
+
+	err = json.Unmarshal(data, &root)
+	if err != nil {
+
+		fmt.Printf("\nerror unmarshalling tree: %v\n", err)
+		fetchTree = true
+	}
+
+	// err = od.LoadOneDrive(od.CurrentDir, rootUrl)
+
+	if fetchTree {
+		root = onedrive.NewRootDir(sharePoint)
+		onedrive.FetchFileTree(client, root)
+		fmt.Println(root)
+
+		data, err = json.Marshal(&root)
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+
+		err = os.WriteFile("output.json", data, 0666)
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+	} else {
+		onedrive.SetParents(root, nil)
+	}
 
 	//Testing purposes it is iterated
 
 	for {
-		directories, files, err := od.Ls()
+		directories, files, err := root.Ls()
 		if err != nil {
 			fmt.Println("Error listing directories and files:", err)
 		} else {
@@ -64,26 +102,18 @@ func main() {
 		}
 
 		cmd = strings.TrimSpace(cmd)
-		isFile := od.IsFile(files, cmd)
-		isDirectory := od.IsDirectory(directories, cmd)
-
+		file, isFile := root.IsFile(cmd)
 		if isFile {
-			dwnloadUrl, err := od.GetDownloadUrl(cmd)
-			if err != nil {
-				fmt.Println(err)
-			}
-			fmt.Println(dwnloadUrl)
+			fmt.Println(file.DownloadUrl)
+			continue
 		}
 
-		if isDirectory {
-			newPath, err := od.Cd(cmd)
-			if err != nil {
-				fmt.Println("Error changing directory: ", err)
-			} else {
-				fmt.Println("New Path: ", newPath.CurrentPath)
-
-			}
-
+		newRoot, err := root.Cd(cmd)
+		if err != nil {
+			fmt.Println("Error changing directory: ", err)
+			continue
 		}
+
+		root = newRoot
 	}
 }

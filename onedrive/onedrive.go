@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"slices"
+	// "strings"
 )
 
 func GetBaseUrl() string {
@@ -14,95 +14,98 @@ func GetBaseUrl() string {
 
 func GetRootUrl(sharePoint string) string {
 	return fmt.Sprintf("/drives/%s", sharePoint)
-
 }
 
-func (od *OneDriveClient) Pwd() Path {
-	return od.Path
-}
-
-func (od *OneDriveClient) GetDownloadUrl(itemName string) (string, error) {
-	items, err := od.GetFiles()
-	if err != nil {
-		return "", err
-	}
-
-	for _, item := range items {
-		if item.Name == itemName {
-			return item.DownloadUrl, nil
+func (d *Directory) IsFile(fileName string) (*File, bool) {
+	for _, file := range d.Files {
+		if file.Name == fileName {
+			return file, true
 		}
-
 	}
-	return "", nil
+	return &File{}, false
 }
 
-func (od *OneDriveClient) IsDirectory(directories []string, directory string) bool {
-	exists := slices.Contains(directories, directory)
-	if !exists {
-		return false
+func SetParents(d *Directory, parent *Directory) {
+	d.Parent = parent
+	for _, directory := range d.Children {
+		SetParents(directory, d)
 	}
-	return true
 }
 
-func (od *OneDriveClient) IsFile(files []string, file string) bool {
-	exists := slices.Contains(files, file)
-	if !exists {
-		return false
+func NewRootDir(sharePoint string) *Directory {
+	return &Directory{
+		Name: "root",
+		Path: fmt.Sprintf("%s/drives/%s", GetBaseUrl(), sharePoint),
 	}
-	return true
 }
 
-func (od *OneDriveClient) Ls() ([]string, []string, error) {
-	items, err := od.GetFiles()
-	if err != nil {
-		return nil, nil, err
-	}
+func (d *Directory) Ls() ([]string, []string, error) {
 	// fmt.Println(items)
-
-	var folders []string
+	var directories []string
 	var files []string
-	for _, item := range items {
-		if item.IsFolder != nil {
-			folders = append(folders, item.Name)
-		} else if item.DownloadUrl != "" {
-			files = append(files, item.Name)
-		}
 
+	for _, directory := range d.Children {
+		directories = append(directories, directory.Name)
 	}
 
-	return folders, files, nil
+	for _, file := range d.Files {
+		files = append(files, file.Name)
+	}
+
+	return directories, files, nil
 }
 
-func (od *OneDriveClient) Cd(directory string) (Path, error) {
+func (d *Directory) Cd(cmd string) (*Directory, error) {
+	if cmd == ".." && d.Parent != nil {
+		return d.Parent, nil
+	}
 
-	od.Path.CurrentPath += "/" + directory
-	return od.Path, nil
+	for _, directory := range d.Children {
+		if directory.Name == cmd {
+			return directory, nil
+		}
+	}
+	return nil, fmt.Errorf("Error not a valid directory")
 }
 
-func (od *OneDriveClient) GetFiles() ([]Item, error) {
-	baseUrl := GetBaseUrl()
-	// path.CurrentPath :
-	url := baseUrl + od.Path.CurrentPath + ":/children"
+func FetchFileTree(client *http.Client, root *Directory) error {
+	url := root.Path + ":/children"
+	fmt.Printf("Current Path: %s", root.Path)
 
 	req, _ := http.NewRequest("GET", url, nil)
 
-	resp, err := od.Client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		_, err := io.ReadAll(resp.Body)
-		return nil, err
+		return err
 	}
 
 	var response struct {
-		Value []Item `json:"value"`
+		Value []Item
 	}
 
 	json.NewDecoder(resp.Body).Decode(&response)
+	fmt.Println(response)
 
-	return response.Value, nil
+	for _, item := range response.Value {
+		if item.IsFolder != nil {
+			newDirectory := &Directory{
+				Name:   item.Name,
+				Path:   root.Path + "/" + item.Name,
+				Parent: root,
+			}
+			root.Children = append(root.Children, newDirectory)
+			FetchFileTree(client, newDirectory)
+		} else {
+			root.Files = append(root.Files, &File{Name: item.Name, Id: item.ID, DownloadUrl: item.DownloadUrl})
+		}
+	}
+
+	return nil
 }
