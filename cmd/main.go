@@ -28,6 +28,7 @@ func main() {
 	appID := os.Getenv("MS_OPENGRAPH_APP_ID")
 	clientSecret := os.Getenv("MS_OPENGRAPH_CLIENT_SECRET")
 	sharePoint := os.Getenv("SHAREPOINT_PATH")
+    driveID := os.Getenv("DRIVE_ID")
 
 	oauthconf := onedrive.NewOauthConfig(tenantID, appID, clientSecret, scopes)
 
@@ -64,9 +65,10 @@ func main() {
 	// err = od.LoadOneDrive(od.CurrentDir, rootUrl)
 
 	if fetchTree {
-		root = onedrive.NewRootDir(sharePoint)
-		onedrive.FetchFileTree(client, root)
-		fmt.Println(root)
+		root = onedrive.NewRootDir(driveID, sharePoint)
+        if err := onedrive.FetchFileTree(client, root); err != nil {
+            log.Fatal(err.Error())
+        }
 
 		data, err = json.Marshal(&root)
 		if err != nil {
@@ -102,9 +104,8 @@ func main() {
 		}
 
 		cmd = strings.TrimSpace(cmd)
-		file, isFile := root.IsFile(cmd)
+        _, isFile := root.IsFile(cmd)
 		if isFile {
-			fmt.Println(file.DownloadUrl)
 			continue
 		}
 

@@ -17,9 +17,10 @@ type OneDriveClient struct {
 // A single DriveItem from the OneDrive API (modifiable)
 type Item struct {
 	Name        string `json:"name"`
-	IsFolder    *bool  `json:"folder,omitempty"`
+    // If the field 'folder' its present the item its a folder, otherwise its a file. 
+    // does not have a boolean isFolder field
+	IsFolder    *interface{} `json:"folder,omitempty"`
 	ID          string `json:"id"`
-	DownloadUrl string `json:"@microsoft.graph.downloadUrl"`
 }
 
 type Directory struct {
@@ -33,5 +34,4 @@ type Directory struct {
 type File struct {
 	Id          string `json:"id"`
 	Name        string `json:"name"`
-	DownloadUrl string `json:"download_url"`
 }

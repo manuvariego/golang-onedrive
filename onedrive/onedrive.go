@@ -2,19 +2,14 @@ package onedrive
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
+	"log"
 	"net/http"
-	// "strings"
+	"path"
 )
 
-func GetBaseUrl() string {
-	return fmt.Sprintf("https://graph.microsoft.com/v1.0/me")
-}
-
-func GetRootUrl(sharePoint string) string {
-	return fmt.Sprintf("/drives/%s", sharePoint)
-}
+const baseUrl = "https://graph.microsoft.com/v1.0/me"
 
 func (d *Directory) IsFile(fileName string) (*File, bool) {
 	for _, file := range d.Files {
@@ -32,15 +27,14 @@ func SetParents(d *Directory, parent *Directory) {
 	}
 }
 
-func NewRootDir(sharePoint string) *Directory {
+func NewRootDir(driveID, sharePoint string) *Directory {
 	return &Directory{
 		Name: "root",
-		Path: fmt.Sprintf("%s/drives/%s", GetBaseUrl(), sharePoint),
-	}
+		Path: path.Join("drives", driveID, sharePoint),
+    }
 }
 
 func (d *Directory) Ls() ([]string, []string, error) {
-	// fmt.Println(items)
 	var directories []string
 	var files []string
 
@@ -69,43 +63,56 @@ func (d *Directory) Cd(cmd string) (*Directory, error) {
 }
 
 func FetchFileTree(client *http.Client, root *Directory) error {
-	url := root.Path + ":/children"
-	fmt.Printf("Current Path: %s", root.Path)
+    children, err := root.fetchChildren(client)
+    if err != nil {
+        return err
+    }
 
-	req, _ := http.NewRequest("GET", url, nil)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		_, err := io.ReadAll(resp.Body)
-		return err
-	}
-
-	var response struct {
-		Value []Item
-	}
-
-	json.NewDecoder(resp.Body).Decode(&response)
-	fmt.Println(response)
-
-	for _, item := range response.Value {
+	for _, item := range children {
 		if item.IsFolder != nil {
 			newDirectory := &Directory{
 				Name:   item.Name,
-				Path:   root.Path + "/" + item.Name,
+				Path:   path.Join(root.Path, item.Name),
 				Parent: root,
 			}
 			root.Children = append(root.Children, newDirectory)
 			FetchFileTree(client, newDirectory)
 		} else {
-			root.Files = append(root.Files, &File{Name: item.Name, Id: item.ID, DownloadUrl: item.DownloadUrl})
+			root.Files = append(root.Files, &File{Name: item.Name, Id: item.ID})
 		}
 	}
 
 	return nil
+}
+
+func (d *Directory) fetchChildren(client *http.Client) ([]Item, error) {
+    url := fmt.Sprintf("%s/%s:/children", baseUrl, d.Path)
+	log.Printf("fetching %s\n", d.Path)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, errors.New(fmt.Sprintf("fetch children request failed with status %d", res.StatusCode))
+	}
+
+    var response struct {
+        Items []Item `json:"value"`
+	}
+
+    if err := json.NewDecoder(res.Body).Decode(&response); err != nil {
+		return nil, err
+    }
+
+	fmt.Println(response.Items)
+    return response.Items, nil
 }
