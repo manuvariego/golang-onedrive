@@ -41,7 +41,7 @@ func main() {
 		}
 	}
 
-	client, err := onedrive.GetClient(oauthconf)
+	client, err := onedrive.GetClient(oauthconf, driveID, sharePoint)
 
 	//Creates onedriveclient with the data
 	// od := onedrive.OneDriveClient{Client: client, CurrentDir: &onedrive.Directory{Name: "root"}}
@@ -65,7 +65,7 @@ func main() {
 	// err = od.LoadOneDrive(od.CurrentDir, rootUrl)
 
 	if fetchTree {
-		root = onedrive.NewRootDir(driveID, sharePoint)
+		root = onedrive.NewRootDir()
         if err := onedrive.FetchFileTree(client, root); err != nil {
             log.Fatal(err.Error())
         }

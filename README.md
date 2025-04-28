@@ -7,3 +7,6 @@ Currently the idea is that each `Driveitem`, shows its `name` ,`path` ,`download
 ## Environment variables
 
 In the projects root directory create a `.env` file, add the `MS_OPENGRAPH_APP_ID` and `MS_OPENGRAPH_APP_SECRET` and `MS_OPENGRAPH_APP_TENANT_ID` variables with their respective values, also do not forget to establish the correct Redirect URI if it is not `https://localhost:3000`.
+
+# Descargar contenido
+/drive/items/{item-id}/content

@@ -21,6 +21,7 @@ type Item struct {
     // does not have a boolean isFolder field
 	IsFolder    *interface{} `json:"folder,omitempty"`
 	ID          string `json:"id"`
+    DownloadUrl string `json:"@microsoft.graph.downloadUrl"`
 }
 
 type Directory struct {
@@ -34,4 +35,5 @@ type Directory struct {
 type File struct {
 	Id          string `json:"id"`
 	Name        string `json:"name"`
+    DownloadUrl string
 }

@@ -6,10 +6,16 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 
 	"golang.org/x/oauth2"
 )
+
+type Client struct {
+	*http.Client
+    baseURL string
+}
 
 func NewOauthConfig(tenantID, appID, clientSecret string, scopes []string) *oauth2.Config {
 	if tenantID == "" || appID == "" || clientSecret == "" {
@@ -111,12 +117,18 @@ func GetValidToken(conf *oauth2.Config) (*oauth2.Token, error) {
 }
 
 // Add some sort of context throughout everything (no idea)
-func GetClient(conf *oauth2.Config) (*http.Client, error) {
+func GetClient(conf *oauth2.Config, driveID, sharePoint string) (*Client, error) {
 	token, err := GetValidToken(conf)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+    u, err := url.JoinPath(baseUrl, "drives", driveID, sharePoint)
+    fmt.Println(u)
+
 	client := conf.Client(context.Background(), token)
-	return client, err
+    return &Client{
+        Client: client,
+        baseURL: u,
+	}, nil
 }
